@@ -23,7 +23,8 @@
 #include "lwip/dns.h"
 #include "sdkconfig.h"
 #include "protocol_examples_common.h"
-// `#include "lwip/err.h"
+#include "lwip/err.h"
+#include "steinhard_hart_converter.h"
 
 static const char *TAG = "http_request_example";
 
@@ -105,9 +106,10 @@ int app_main(void)
 
     // take the measurement, every 30 seconds for 5 minutes (10 measurements)
     if (MEASUREMENT_IDX < 10) {
-        MEASUREMENTS[MEASUREMENT_IDX] = (int8_t) MEASUREMENT_IDX; // dummy value now, do function call here instead
+        float adc_value = 1.65f; // dummy value, replace with ADC reading
+        MEASUREMENTS[MEASUREMENT_IDX] = (int8_t) compute_temperature_celsius(adc_value);
+        ESP_LOGI(TAG, "Measurement %d", MEASUREMENTS[MEASUREMENT_IDX]);
         MEASUREMENT_IDX++;
-        ESP_LOGI(TAG, "Measurement %d", MEASUREMENTS[MEASUREMENT_IDX - 1]);
     }
 
     // go to deep sleep if more measurements are needed
