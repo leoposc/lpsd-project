@@ -29,7 +29,7 @@
 static const char *TAG = "http_request_example";
 
 // create RTC Slow Memory to store measurement data
-RTC_DATA_ATTR static int8_t MEASUREMENTS[10];
+RTC_DATA_ATTR static float MEASUREMENTS[10];
 RTC_DATA_ATTR static size_t MEASUREMENT_IDX = 0;
 
 
@@ -106,9 +106,9 @@ int app_main(void)
 
     // take the measurement, every 30 seconds for 5 minutes (10 measurements)
     if (MEASUREMENT_IDX < 10) {
-        float adc_value = 1.65f; // dummy value, replace with ADC reading
-        MEASUREMENTS[MEASUREMENT_IDX] = (int8_t) compute_temperature_celsius(adc_value);
-        ESP_LOGI(TAG, "Measurement %d", MEASUREMENTS[MEASUREMENT_IDX]);
+        float adc_value = 1.65f + (0.1f * MEASUREMENT_IDX); // dummy value, replace with ADC reading
+        MEASUREMENTS[MEASUREMENT_IDX] = compute_temperature_celsius(adc_value);
+        ESP_LOGI(TAG, "Measurement %f", MEASUREMENTS[MEASUREMENT_IDX]);
         MEASUREMENT_IDX++;
     }
 
@@ -117,7 +117,7 @@ int app_main(void)
         ESP_LOGI(TAG, "Going to deep sleep");
         esp_sleep_enable_timer_wakeup(5 * 100000ULL); // for testing, every 0.5 seconds
         esp_deep_sleep_start();
-    } else {
+    } else { 
         ESP_LOGI(TAG, "All measurements collected");
     }
 
