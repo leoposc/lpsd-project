@@ -12,7 +12,6 @@
 #include "esp_system.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
-#include "esp_log.h"
 #include "esp_err.h"
 #include "esp_sleep.h"
 #include "nvs_flash.h"
@@ -34,9 +33,17 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#define PORT 22504
 
-static const char *TAG = "http_request_example";
+// SERVER_HOST works with hostname or numerical IP
+
+//#define SERVER_HOST "pbl.permasense.uibk.ac.at"
+//#define SERVER_HOST  "192.168.0.113"   //for debugging
+#define SERVER_HOST  "MacBookAir.telekom.ip"   //for debugging2
+
+//#define SERVER_PORT 22504 
+#define SERVER_PORT 5001      //for debugging
+
+static const char *TAG = "group_2";
 
 // create RTC Slow Memory to store measurement data
 RTC_DATA_ATTR static float MEASUREMENTS[10];
@@ -49,6 +56,10 @@ RTC_DATA_ATTR static size_t MEASUREMENT_IDX = 0;
 // static int voltage[2][10];
 static bool example_adc_calibration_init(adc_unit_t unit, adc_channel_t channel, adc_atten_t atten, adc_cali_handle_t *out_handle);
 
+
+/*---------------------------------------------------------------
+        https_function
+---------------------------------------------------------------*/
 void send_http_post(void *pvParameters)
 {
 
@@ -116,7 +127,10 @@ void send_http_post(void *pvParameters)
     vTaskDelete(NULL);
 }
 
-void tcp_client(char *data)
+/*---------------------------------------------------------------
+        tcp_function_first_try     char host_ip[] = "192.168.0.113";
+---------------------------------------------------------------*/
+/*void tcp_client(char *data)
 {
     char rx_buffer[128];
     char host_ip[] = "pbl.permasense.uibk.ac.at";
@@ -186,7 +200,102 @@ void tcp_client(char *data)
         }
     }
 }
+*/
 
+
+/*---------------------------------------------------------------
+        tcp_function_new
+---------------------------------------------------------------*/
+void send_tcp_data(void *pvParameters)
+{
+    char (*data)[80] = pvParameters;
+
+    // Build payload
+    char send_buffer[10 * 80 + 1];
+    send_buffer[0] = '\0';
+
+    for (int i = 0; i < 10; i++)
+    {
+        strcat(send_buffer, data[i]);
+        strcat(send_buffer, "\n");
+    }
+
+ ESP_LOGI(TAG, "Payload built, %d bytes", (int)strlen(send_buffer));
+
+    // Resolve hostname or numeric IP
+    struct sockaddr_in server_addr;
+    struct in_addr addr;
+
+    if (inet_pton(AF_INET, SERVER_HOST, &addr) == 1)
+    {
+        // SERVER_HOST is numeric IP
+        server_addr.sin_addr = addr;
+    }
+    else
+    {
+        // SERVER_HOST is a hostname, resolve via DNS
+        struct hostent *he = gethostbyname(SERVER_HOST);
+        if (!he)
+        {
+            ESP_LOGE(TAG, "DNS lookup failed for %s", SERVER_HOST);
+            vTaskDelete(NULL);
+            return;
+        }
+        memcpy(&server_addr.sin_addr, he->h_addr, he->h_length);
+    }
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(SERVER_PORT);
+
+    // Create socket
+    int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+    if (sock < 0)
+    {
+        ESP_LOGE(TAG, "Unable to create socket");
+        vTaskDelete(NULL);
+        return;
+    }
+
+    ESP_LOGI(TAG, "Connecting to %s:%d...", SERVER_HOST, SERVER_PORT);
+    if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) != 0)
+    {
+        ESP_LOGE(TAG, "Socket unable to connect");
+        close(sock);
+        vTaskDelete(NULL);
+        return;
+    }
+
+    ESP_LOGI(TAG, "Connected, sending payload...");
+
+    // Send payload
+    if (send(sock, send_buffer, strlen(send_buffer), 0) < 0)
+    {
+        ESP_LOGE(TAG, "Send failed");
+    }
+    else
+    {
+        ESP_LOGI(TAG, "Payload sent successfully");
+    }
+
+    // Optional: receive response
+    char rx_buffer[512];
+    int len = recv(sock, rx_buffer, sizeof(rx_buffer) - 1, 0);
+    if (len > 0)
+    {
+        rx_buffer[len] = 0;
+        ESP_LOGI(TAG, "Received: %s", rx_buffer);
+    }
+
+    // Close socket
+    close(sock);
+    ESP_LOGI(TAG, "Socket closed");
+
+    vTaskDelete(NULL);
+}
+
+/*---------------------------------------------------------------
+        main function
+---------------------------------------------------------------*/
 int app_main(void)
 {
     ESP_ERROR_CHECK(nvs_flash_init());
@@ -280,8 +389,9 @@ int app_main(void)
 
     // xTaskCreate(send_http_post, "HTTP_POST_TASK", 4096, dataArray, 5, NULL);
 
-    tcp_client((char *)dataArray);
+    //tcp_client((char *)dataArray);
 
+    send_tcp_data(dataArray);
     return EXIT_SUCCESS;
 }
 
