@@ -354,7 +354,8 @@ int app_main(void)
     if (MEASUREMENT_IDX < 10)
     {
         // ESP_LOGI(TAG, "Going to deep sleep");
-        esp_sleep_enable_timer_wakeup(5 * 100000ULL); // for testing, every 0.5 seconds
+        //esp_sleep_enable_timer_wakeup(5 * 100000ULL); // for testing, every 0.5 seconds
+        esp_sleep_enable_timer_wakeup(30 * 1000000ULL); // for measuring, every 30 seconds
         esp_deep_sleep_start();
     }
     //  else {
